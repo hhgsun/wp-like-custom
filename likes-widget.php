@@ -34,7 +34,7 @@ class like_widget extends WP_Widget {
       echo '<ul>';
       while ( $the_query->have_posts() ) {
         $the_query->the_post();
-        $total_like = get_post_meta(get_the_ID(), 'like_count', true);
+        $total_like = get_post_meta(get_the_ID(), 'like_total', true);
         echo '<li><a href="'. get_the_permalink() .'" title="'.get_the_title().'">' . get_the_title() . '</a> ('. $total_like .')</li>';
       }
       echo '</ul>';

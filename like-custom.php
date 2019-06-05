@@ -26,8 +26,10 @@ class LikeCustom {
     add_action('wp_ajax_nopriv_like_callback', array($this, 'like_callback'));  
   }
 
-  var $like_meta_name = 'like_ids'; // post meta alan adı
-  var $like_meta_count_name = 'like_count'; // post meta alan adı
+  var $like_post_meta_name = 'like_id_list'; // post meta alan adı
+  var $like_post_meta_count_name = 'like_total'; // post meta alan adı
+  var $like_tag_meta_name = 'post_likes_count';
+  var $like_tag_meta_idsname = 'post_likes_ids';
 
   function enqueue(){
     wp_enqueue_script('enqueue-ajax-call');
@@ -45,9 +47,11 @@ class LikeCustom {
     $btn = '<a class="btn like-btn-disable" href="'. wp_login_url( get_permalink() ) .'" title="beğen">Beğenmek için Giriş Yapınız</a>';
     if(is_single()){
       if(is_user_logged_in()){
-        $like_list = get_post_meta(get_the_ID(), $this->like_meta_name, true); // tüm beğeni listesi
+        $like_list = get_post_meta(get_the_ID(), $this->like_post_meta_name, true); // tüm beğeni listesi
         $is_liked = $this->preLiked($like_list, get_the_ID(), get_current_user_id()) == -1 ? false : true;
-        $btn = '<button id="btn-like__'. get_the_ID() .'__'. get_current_user_id() .'" class="btn-like-plugin'. ($is_liked ? ' is-liked' : '') .'">'. ($is_liked ? 'Beğendin' : 'Beğen') . '</button>';
+        $like_count = get_post_meta(get_the_ID(), $this->like_post_meta_count_name, true);
+        $span_count = '(<span class="btn-number-text">' . ($like_count ? $like_count : 0) . '</span>)';
+        $btn = '<button id="btn-like__'. get_the_ID() .'__'. get_current_user_id() .'" class="btn-like-plugin'. ($is_liked ? ' is-liked' : '') .'"><span class="btn-like-text">'. ($is_liked ? 'Beğendin' : 'Beğen') . '</span> ' . $span_count . '</button>';
         return $content.$btn;
       }
       return $content.$btn;
@@ -68,7 +72,7 @@ class LikeCustom {
   function like_callback() {
     $like_post_id = $_REQUEST['like_post_id']; // post id
     $like_user_id = $_REQUEST['like_user_id']; // user id
-    $like_list = get_post_meta($like_post_id, $this->like_meta_name, true); // tüm beğeni listesi
+    $like_list = get_post_meta($like_post_id, $this->like_post_meta_name, true); // tüm beğeni listesi
 
     if($like_list == '') {
       $like_list = array($like_user_id); // beğeni listesi boş ise sıfırdan oluşur
@@ -76,19 +80,55 @@ class LikeCustom {
       $count = 0;
       foreach ($like_list as $key => $uid) {
         if($uid == $like_user_id){
+          $this->set_tag_field_like($like_post_id, count($like_list), false);
           unset($like_list[$key]); // beğeni önceden varsa kaldırılır
           $count++;
           break;
         }
       }
       if($count == 0){
+        $this->set_tag_field_like($like_post_id, count($like_list), true);
         array_push($like_list, $like_user_id); // beğeni önceden yoksa oluşur
       }
     }
-    update_post_meta($like_post_id, $this->like_meta_name, $like_list);
-    update_post_meta($like_post_id, $this->like_meta_count_name, count($like_list));
+    update_post_meta($like_post_id, $this->like_post_meta_name, $like_list);
+    update_post_meta($like_post_id, $this->like_post_meta_count_name, count($like_list));
     echo json_encode($like_list);
     die();
+  }
+
+  // burada etiketlere (tag) özel alan oluşturup altındaki yazıların beğeni toplamlarını tutmayı sağlıyoruz
+  function set_tag_field_like($post_id, $post_total_like, $is_like){
+    $post_tags = get_the_tags($post_id);
+    foreach ($post_tags as $tag) {
+      $total_like = get_term_meta( $tag->term_id, $this->like_tag_meta_name, true );
+      if($total_like == '')
+        $total_like = 0;
+
+      // tüm beğeni sayısını tag alanına eklimek için daha önce eklendimi kontrolü yapıyoruz
+      $total_post_ids = get_term_meta( $tag->term_id, $this->like_tag_meta_idsname, true );
+      
+      $count = 0;
+      if($total_post_ids == ''){ $total_post_ids = array(); }
+      else {
+        foreach ($total_post_ids as $_pid) {
+          if($_pid == $post_id)
+            $count++;
+        }
+      }
+
+      // daha önce beğeni sayıları tag e eklenmemiş ise ekliyoruz
+      if($count == 0){
+        $total_like = $total_like + $post_total_like;
+        array_push($total_post_ids, $post_id);
+        update_term_meta( $tag->term_id, $this->like_tag_meta_idsname, $total_post_ids );
+      }
+
+      if($total_like < 0) 
+        $total_like = 0;
+ 
+      update_term_meta( $tag->term_id, $this->like_tag_meta_name, ($is_like ? $total_like + 1 : $total_like - 1) );
+    }
   }
 
 }

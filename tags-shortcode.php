@@ -10,9 +10,10 @@ function like_list_render( $atts ){
   
   $tags = get_tags(array(
     'offset' => 0,
-    'number'  => 100,
-    //'orderby' => 'like_count',
+    'orderby' => 'post_likes_count',
+    'order' => 'DESC',
   ));
+
   echo '<ul>';
   foreach ($tags as $key => $tag) { ?>
     <li>
@@ -23,6 +24,7 @@ function like_list_render( $atts ){
     <?php 
   }
   echo '</ul>';
+
 	return ob_get_clean();
 }
 add_shortcode( 'likes', 'like_list_render' );

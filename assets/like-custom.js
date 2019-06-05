@@ -1,16 +1,30 @@
 jQuery(document).ready(function ($) {
 
+  var btnClickLimit = 5;
+  var btnClickCount = 0;
+
   $(".btn-like-plugin").stop().click(function () {
-    $(this).prop( "disabled", true );
-    if ($(this).hasClass('is-liked'))
-      $(this).text('Beğen').removeClass('is-liked');
-    else
-      $(this).text('Beğendin').addClass('is-liked');
+    $(this).prop("disabled", true);
+    var numberText = Number($($('.btn-number-text')[0]).text());
+
+    if ($(this).hasClass('is-liked')) {
+      $(this).removeClass('is-liked');
+      $($('.btn-like-text')[0]).text('Beğen');
+      numberText -= 1;
+    } else {
+      $($('.btn-like-text')[0]).text('Beğendin');
+      $(this).addClass('is-liked');
+      numberText += 1;
+    }
+    $($('.btn-number-text')[0]).text(numberText);
 
     var btnInfo = this.id.split('__');
     var _post_id = btnInfo[1];
     var _user_id = btnInfo[2];
-    ajax_like_plug(_post_id, _user_id, this);
+
+    btnClickCount++;
+    if (btnClickCount <= btnClickLimit)
+      ajax_like_plug(_post_id, _user_id, this);
   });
 
   function ajax_like_plug(_post_id, _user_id, btnObj) {
@@ -26,11 +40,11 @@ jQuery(document).ready(function ($) {
       },
       success: function (data) {
         console.log('başarılı', data);
-        $(btnObj).prop( "disabled", false );
+        $(btnObj).prop("disabled", false);
       },
-      error: function(err){
+      error: function (err) {
         console.log('Error:', err);
-        $(btnObj).prop( "disabled", false );
+        $(btnObj).prop("disabled", false);
       }
     });
   }
